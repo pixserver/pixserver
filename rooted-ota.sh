@@ -246,7 +246,7 @@ function findLatestVersion() {
 if [ -z "$OTA_TARGET" ]; then
     exit 1
 fi
-  OTA_URL="$OTA_BASE_URL/$OTA_TARGET.zip"
+  OTA_URL="$OTA_BASE_URL/$OTA_TARGET"
   # e.g.  shiba-ota_update-2023121200
   echo "OTA target: $OTA_TARGET; OTA URL: $OTA_URL"
 }
