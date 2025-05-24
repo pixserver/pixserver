@@ -38,19 +38,19 @@ OTA_VERSION=${OTA_VERSION:-'latest'}
 # Breaking changes in magisk might need to be adapted in new avbroot version
 # Find latest magisk version here: https://github.com/topjohnwu/Magisk/releases, or:
 # curl --fail -sL -I -o /dev/null -w '%{url_effective}' https://github.com/topjohnwu/Magisk/releases/latest | sed 's/.*\/tag\///;'
-MAGISK_VERSION=${MAGISK_VERSION:-'v27.0'}
-KERNELSU_VERSION=${KERNELSU_VERSION:-'v0.9.3'}
+MAGISK_VERSION=${MAGISK_VERSION:-'v29.0'}
+KERNELSU_VERSION=${KERNELSU_VERSION:-'v1.0.5'}
 
 SKIP_CLEANUP=${SKIP_CLEANUP:-''}
 # Set asset released by this script to latest version, even when OTA_VERSION already exists for this device
 FORCE_OTA_SERVER_UPLOAD=${FORCE_OTA_SERVER_UPLOAD:-'false'}
 
 OTA_CHANNEL=${OTA_CHANNEL:-stable} # Alternative: 'alpha'
-OTA_BASE_URL="https://releases.grapheneos.org"
+OTA_BASE_URL="https://dl.google.com/developers/android/baklava/images/ota"
 
 # TODO use dependabot or renovate to upgrade these
-AVB_ROOT_VERSION=3.1.1
-CUSTOTA_VERSION=4.0
+AVB_ROOT_VERSION=3.16.1
+CUSTOTA_VERSION=5.8
 
 set -o nounset -o pipefail -o errexit
 
@@ -240,11 +240,12 @@ function findLatestVersion() {
   # Search for a new version grapheneos.
   # e.g. https://releases.grapheneos.org/shiba-stable
 
-  if [[ "$OTA_VERSION" == 'latest' ]]; then
-    OTA_VERSION=$(curl --fail -sL "$OTA_BASE_URL/$DEVICE_ID-$OTA_CHANNEL" | head -n1 | awk '{print $1;}')
-  fi
+  INFO_PAGE_URL="https://developer.android.com/about/versions/16/download-ota"
   GRAPHENE_TYPE=${GRAPHENE_TYPE:-'ota_update'} # Other option: factory
-  OTA_TARGET="$DEVICE_ID-$GRAPHENE_TYPE-$OTA_VERSION"
+  OTA_TARGET=$(curl -s "$INFO_PAGE_URL" | grep -oE "shiba_beta-ota[^<]*?\.zip" | head -n 1)
+if [ -z "$OTA_TARGET" ]; then
+    exit 1
+fi
   OTA_URL="$OTA_BASE_URL/$OTA_TARGET.zip"
   # e.g.  shiba-ota_update-2023121200
   echo "OTA target: $OTA_TARGET; OTA URL: $OTA_URL"
