@@ -19,7 +19,7 @@ DEBUG=${DEBUG:-''}
 if [[ -n "${DEBUG}" ]]; then set -x; fi
 
 # Mandatory params
-DEVICE_ID=${DEVICE_ID:-} # See here for device IDs https://grapheneos.org/releases
+DEVICE_ID=${DEVICE_ID:-'shiba'} # See here for device IDs https://grapheneos.org/releases
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 GITHUB_REPO=${GITHUB_REPO:-''}
 
@@ -28,9 +28,9 @@ GITHUB_REPO=${GITHUB_REPO:-''}
 MAGISK_PREINIT_DEVICE=${MAGISK_PREINIT_DEVICE:-}
 # If you want an OTA patched with kernelsu, set the KMI for your device
 # https://kernelsu.org/guide/installation.html#kmi
-KERNELSU_KMI=${KERNELSU_KMI:-}
+KERNELSU_KMI=${KERNELSU_KMI:-'6.1-android14-11'}
 # Skip creation of rootless OTA by setting to "true"
-SKIP_ROOTLESS=${SKIP_ROOTLESS:-'false'}
+SKIP_ROOTLESS=${SKIP_ROOTLESS:-'true'}
 # https://grapheneos.org/releases#stable-channel
 OTA_VERSION=${OTA_VERSION:-'latest'}
 
