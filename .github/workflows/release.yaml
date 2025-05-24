@@ -5,30 +5,33 @@ on:
     branches:
       - main
   schedule:
-    - cron:  '0 3 * * *'
+    - cron: '0 3 * * *'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
-      device-id: shiba
+      device-id:
         description: Device ID
         required: false
+        default: shiba
       magisk-preinit-device:
         description: Magisk preinit device
         required: false
-      kernelsu-kmi: android14-6.1
+      kernelsu-kmi:
         description: kernelsu KMI for device
         required: false
+        default: android14-6.1
       ota-version:
         description: OTA version
         required: false
       magisk-version:
         description: Magisk version
         required: false
-      force-ota-server-upload: true
+      force-ota-server-upload:
         description: Force OTA server upload
         required: false
         type: boolean
+        default: true
 jobs:
   build:
     runs-on: ubuntu-latest
