@@ -1,9 +1,11 @@
 name: Release
 
 on:
-  push:
-  branches:
-      - main
+    push:
+    branches:
+      - '*'
+    paths:
+      - rooted-ota.sh
   schedule:
     - cron:  '0 3 * * *'
 
