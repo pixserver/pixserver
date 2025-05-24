@@ -28,7 +28,7 @@ GITHUB_REPO=${GITHUB_REPO:-''}
 MAGISK_PREINIT_DEVICE=${MAGISK_PREINIT_DEVICE:-}
 # If you want an OTA patched with kernelsu, set the KMI for your device
 # https://kernelsu.org/guide/installation.html#kmi
-KERNELSU_KMI=${KERNELSU_KMI:-'6.1-android14-11'}
+KERNELSU_KMI=${KERNELSU_KMI:-'android14-6.1'}
 # Skip creation of rootless OTA by setting to "true"
 SKIP_ROOTLESS=${SKIP_ROOTLESS:-'true'}
 # https://grapheneos.org/releases#stable-channel
