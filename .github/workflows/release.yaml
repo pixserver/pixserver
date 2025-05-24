@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  schedule:
+    - cron:  '0 3 * * *'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      device-id:
+        description: Device ID
+        required: false
+      magisk-preinit-device:
+        description: Magisk preinit device
+        required: false
+      kernelsu-kmi:
+        description: kernelsu KMI for device
+        required: false
+      ota-version:
+        description: OTA version
+        required: false
+      magisk-version:
+        description: Magisk version
+        required: false
+      force-ota-server-upload:
+        description: Force OTA server upload
+        required: false
+        type: boolean
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Allow for switching to github-pages branch
+          fetch-depth: 0
+      - name: Trim input
+        # Empty means, use version defined in rooted-ota.sh
+        run: |
+          echo "MAGISK_VERSION=$(echo '${{ github.event.inputs.magisk-version || '' }}' | xargs)" >> $GITHUB_ENV
+          echo "OTA_VERSION=$(echo '${{ github.event.inputs.ota-version || '' }}' | xargs)" >> $GITHUB_ENV
+          echo "MAGISK_PREINIT_DEVICE=$(echo '${{ github.event.inputs.magisk-preinit-device || 'sda10' }}' | xargs)" >> $GITHUB_ENV
+          echo "KERNELSU_KMI=$(echo '${{ github.event.inputs.kernelsu-kmi|| '' }}' | xargs)" >> $GITHUB_ENV
+          echo "DEVICE_ID=$(echo '${{ github.event.inputs.device-id || 'shiba' }}' | xargs)" >> $GITHUB_ENV
+          echo "FORCE_OTA_SERVER_UPLOAD=$(echo '${{ github.event.inputs.force-ota-server-upload || '' }}' | xargs)" >> $GITHUB_ENV
+      - run: sudo apt-get install -y jq curl git
+      - name: release
+        env:
+          PASSPHRASE_AVB: ${{ secrets.PASSPHRASE_AVB }}
+          PASSPHRASE_OTA: ${{ secrets.PASSPHRASE_OTA }}
+          KEY_AVB_BASE64: ${{ secrets.KEY_AVB_BASE64 }}
+          CERT_OTA_BASE64: ${{ secrets.CERT_OTA_BASE64 }}
+          KEY_OTA_BASE64: ${{ secrets.KEY_OTA_BASE64 }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          DEBUG=1 bash -c '. rooted-ota.sh && createAndReleaseRootedOta'
