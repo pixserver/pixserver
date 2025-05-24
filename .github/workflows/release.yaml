@@ -10,13 +10,13 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
-      device-id:
+      device-id: shiba
         description: Device ID
         required: false
       magisk-preinit-device:
         description: Magisk preinit device
         required: false
-      kernelsu-kmi:
+      kernelsu-kmi: android14-6.1
         description: kernelsu KMI for device
         required: false
       ota-version:
@@ -25,7 +25,7 @@ on:
       magisk-version:
         description: Magisk version
         required: false
-      force-ota-server-upload:
+      force-ota-server-upload: true
         description: Force OTA server upload
         required: false
         type: boolean
