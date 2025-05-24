@@ -364,7 +364,7 @@ function uploadFile() {
   local contentType="$3"
 
   # Note that --data-binary might lead to out of memory
-  curl --fail -X POST -H "Authorization: token $GITHUB_TOKEN" \
+   curl --fail -X POST -H "Authorization: token $GITHUB_TOKEN" \
     -H "Content-Type: $contentType" \
     --upload-file "$sourceFileName" \
     "https://uploads.github.com/repos/$GITHUB_REPO/releases/$RELEASE_ID/assets?name=$targetFileName"
