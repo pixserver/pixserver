@@ -243,27 +243,8 @@ function findLatestVersion() {
   fi
   print "Magisk version: $MAGISK_VERSION"
 
-  # Search for baklava beta.
+  # Search for a new version grapheneos.
   # e.g. https://releases.grapheneos.org/shiba-stable
-  
-  GOOGU="https://developer.android.com/about/versions/16/download-ota"
-OTA_FILENAME=""
-NEW_DOWNLOAD_BASE_GOOGU="https://dl.google.com/developers/android/baklava/images/ota/"
-
-echo "Fetching page: $GOOGU"
-
-# Fetch the page content and extract the filename
-OTA_FILENAME=$(cGOOGU -s "$GOOGU" | grep -oE "shiba_beta-ota[^<]*?\.zip" | head -n 1)
-
-if [ -z "$OTA_FILENAME" ]; then
-    echo "Error: Could not find the OTA filename starting with 'shiba_beta-ota' on the page."
-    exit 1
-fi
-
-echo "Found OTA filename: $OTA_FILENAME"
-
-# Construct the full download GOOGU with the new base
-DOWNLOAD_GOOGU="${NEW_DOWNLOAD_BASE_GOOGU}${OTA_FILENAME}"
 
   if [[ "$OTA_VERSION" == 'latest' ]]; then
     OTA_VERSION=$(curl --fail -sL "$OTA_BASE_URL/$DEVICE_ID-$OTA_CHANNEL" | head -n1 | awk '{print $1;}')
