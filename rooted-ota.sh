@@ -59,7 +59,7 @@ UPLOAD_TEST_OTA=${UPLOAD_TEST_OTA:-false}
 
 OTA_CHANNEL=${OTA_CHANNEL:-stable} # Alternative: 'alpha'
 NO_COLOR=${NO_COLOR:-''}
-OTA_BASE_URL="https://dl.google.com/developers/android/baklava/images/ota/"
+OTA_BASE_URL="https://dl.google.com/developers/android/baklava/images/ota"
 
 # renovate: datasource=github-releases packageName=chenxiaolong/avbroot versioning=semver
 AVB_ROOT_VERSION=3.15.0
@@ -252,6 +252,9 @@ function findLatestVersion() {
   fi
   GRAPHENE_TYPE=${GRAPHENE_TYPE:-'ota_update'} # Other option: factory
   OTA_TARGET=$(curl -s "$INFO_PAGE_URL" | grep -oE "shiba_beta-ota[^<]*?\.zip" | head -n 1)
+if [ -z "$OTA_TARGET" ]; then
+    exit 1
+fi
   OTA_URL="$OTA_BASE_URL/$OTA_TARGET.zip"
   # e.g.  shiba-ota_update-2023121200
   print "OTA target: $OTA_TARGET; OTA URL: $OTA_URL"
