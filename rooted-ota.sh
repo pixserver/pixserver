@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Requires git, jq, and curl 
+# Requires git, jq, and curl
 
 KEY_AVB=${KEY_AVB:-avb.key}
 KEY_OTA=${KEY_OTA:-ota.key}
@@ -107,19 +107,19 @@ function cleanup() {
 }
 
 function checkBuildNecessary() {
-  if [[ -n "$MAGISK_PREINIT_DEVICE" ]]; then 
+  if [[ -n "$MAGISK_PREINIT_DEVICE" ]]; then
     # e.g. oriole-2023121200-magisk-v26.4-4647f74-dirty.zip
     POTENTIAL_ASSETS['magisk']="$DEVICE_ID-$OTA_VERSION-magisk-$MAGISK_VERSION-$(git rev-parse --short HEAD)$(createDirtySuffix).zip"
-  else 
+  else
     printGreen "MAGISK_PREINIT_DEVICE not set for device, not creating magisk OTA"
   fi
-  if [[ -n "$KERNELSU_KMI" ]]; then 
+  if [[ -n "$KERNELSU_KMI" ]]; then
     # e.g. oriole-2023121200-magisk-v26.4-4647f74-dirty.zip
     POTENTIAL_ASSETS['kernelsu']="$DEVICE_ID-$OTA_VERSION-kernelsu-$KERNELSU_VERSION-$(git rev-parse --short HEAD)$(createDirtySuffix).zip"
-  else 
+  else
     printGreen "KERNELSU_KMI not set for device, not creating kernelsu OTA"
   fi
-  
+
   if [[ "$SKIP_ROOTLESS" != 'true' ]]; then
     POTENTIAL_ASSETS['rootless']="$DEVICE_ID-$OTA_VERSION-rootless-$(git rev-parse --short HEAD)$(createDirtySuffix).zip"
   else
@@ -149,23 +149,67 @@ function checkBuildNecessary() {
   if [[ -n ${response} ]]; then
     RELEASE_ID=$(echo "$response" | jq -r '.id')
     echo "Release ${OTA_VERSION} exists. ID=$RELEASE_ID"
-    
+
+    # --- START EDITS FOR ASSET MANAGEMENT ---
     for flavor in "${!POTENTIAL_ASSETS[@]}"; do
-      local POTENTIAL_ASSET_NAME="${POTENTIAL_ASSETS[$flavor]}"
-      echo "Checking if asset exists ${POTENTIAL_ASSET_NAME}"
-      
-      selected_asset=$(echo "$response" | jq -r --arg assetName "${POTENTIAL_ASSET_NAME}" '.assets[] | select(.name == $assetName)')
-  
-      if [ -n "$selected_asset" ]; then
-        printGreen "Asset with name '$POTENTIAL_ASSET_NAME' already released. Not creating it."
-        unset "POTENTIAL_ASSETS[$flavor]"
-      else
-        echo "No asset found with name '$POTENTIAL_ASSET_NAME'."
+      local current_asset_name="${POTENTIAL_ASSETS[$flavor]}"
+      local base_name_prefix=""
+      local file_extension=".zip"
+      local csig_extension=".zip.csig"
+
+      if [[ "$flavor" == 'magisk' ]]; then
+          base_name_prefix="$DEVICE_ID-$OTA_VERSION-magisk-$MAGISK_VERSION-"
+      elif [[ "$flavor" == 'kernelsu' ]]; then
+          base_name_prefix="$DEVICE_ID-$OTA_VERSION-kernelsu-$KERNELSU_VERSION-"
+      elif [[ "$flavor" == 'rootless' ]]; then
+          base_name_prefix="$DEVICE_ID-$OTA_VERSION-rootless-"
+      fi
+
+      # Find and delete old .zip assets
+      local existing_zip_assets=$(echo "$response" | jq -c --arg prefix "$base_name_prefix" --arg ext "$file_extension" '.assets[] | select(.name | startswith($prefix) and endswith($ext))')
+
+      if [ -n "$existing_zip_assets" ]; then
+          echo "$existing_zip_assets" | while IFS= read -r asset; do
+              local asset_id=$(echo "$asset" | jq -r '.id')
+              local asset_name=$(echo "$asset" | jq -r '.name')
+              # Only delete if it's an old asset (not the exact file we're about to upload)
+              if [[ "$asset_name" != "$current_asset_name" ]]; then
+                printYellow "Found old ZIP asset to delete: '$asset_name' (ID: $asset_id)"
+                deleteAsset "$asset_id" "$asset_name"
+              else
+                # If the exact file name exists, no need to re-upload.
+                printGreen "Asset with name '$asset_name' (ID: $asset_id) already exists and matches current build. Skipping upload."
+                unset "POTENTIAL_ASSETS[$flavor]" # Prevent re-uploading the identical file
+              fi
+          done
+      fi
+
+      # Find and delete old .csig assets
+      local existing_csig_assets=$(echo "$response" | jq -c --arg prefix "$base_name_prefix" --arg ext "$csig_extension" '.assets[] | select(.name | startswith($prefix) and endswith($ext))')
+
+      if [ -n "$existing_csig_assets" ]; then
+          echo "$existing_csig_assets" | while IFS= read -r asset; do
+              local asset_id=$(echo "$asset" | jq -r '.id')
+              local asset_name=$(echo "$asset" | jq -r '.name')
+              # Only delete if it's an old CSIG asset (not the exact .csig file we're about to generate/upload)
+              if [[ "$asset_name" != "${current_asset_name}.csig" ]]; then
+                printYellow "Found old CSIG asset to delete: '$asset_name' (ID: $asset_id)"
+                deleteAsset "$asset_id" "$asset_name"
+              else
+                 printGreen "CSIG asset with name '$asset_name' (ID: $asset_id) already exists and matches current build. Skipping CSIG upload."
+                 # If the main asset is already uploaded, and its CSIG also exists, we assume the CSIG is fine.
+                 # No specific unset needed for CSIGs in POTENTIAL_ASSETS as they are derived from the main asset.
+              fi
+          done
       fi
     done
-    
-    if [ "${#POTENTIAL_ASSETS[@]}" -eq 0 ]; then
-      printGreen "All potential assets already exist. Exiting"
+
+    # --- END EDITS FOR ASSET MANAGEMENT ---
+
+    # Only exit if FORCE_OTA_SERVER_UPLOAD is false AND no new assets were generated or old ones deleted/replaced.
+    # If POTENTIAL_ASSETS is empty here, it means all required assets for this build already existed.
+    if [[ "$FORCE_OTA_SERVER_UPLOAD" == 'false' && "${#POTENTIAL_ASSETS[@]}" -eq 0 ]]; then
+      printGreen "All potential assets already exist and FORCE_OTA_SERVER_UPLOAD is false. Exiting"
       exit 0
     fi
   else
@@ -201,10 +245,10 @@ function downloadAndroidDependencies() {
       curl --fail -sLo ".tmp/magisk-$MAGISK_VERSION.apk" "https://github.com/topjohnwu/Magisk/releases/download/$MAGISK_VERSION/Magisk-$MAGISK_VERSION.apk"
     fi
   fi
-  
+
   if ! ls ".tmp/ksud-$KERNELSU_VERSION.zip" >/dev/null 2>&1 && [[ "${POTENTIAL_ASSETS['kernelsu']+isset}" ]]; then
     checkMandatoryVariable 'GITHUB_TOKEN'
-    local artifacts_url ksud_artifact_api_url 
+    local artifacts_url ksud_artifact_api_url
     artifacts_url=$(curl -s --fail -H "Authorization: token $GITHUB_TOKEN" \
       "https://api.github.com/repos/tiann/KernelSU/actions/runs?event=push&branch=$KERNELSU_VERSION" | jq  -r '.workflow_runs[0].artifacts_url')
     # Note that this might fail once we exceed 100 artifacts. Then, we would have to implement paging
@@ -216,7 +260,7 @@ function downloadAndroidDependencies() {
      # run_id=$(echo $artifacts_url | sed -n 's/.*runs\/\([0-9]*\)\/.*/\1/p')
      # ksud_artifact_id=$(echo $ksud_artifact_api_url | sed -n 's/.*artifacts\/\([0-9]*\)\/.*/\1/p')
      # curl --fail -Lo ".tmp/ksud.zip" "https://github.com/tiann/KernelSU/actions/runs/$run_id/artifacts/$ksud_artifact_id"
-     
+
      # Extract ksud and libmagiskboot (-j == junk paths, don't recreate archive’s directory structure)
      unzip -j ".tmp/magisk-$MAGISK_VERSION.apk" 'lib/x86_64/libmagiskboot.so' -d .tmp
      unzip -j ".tmp/ksud-$KERNELSU_VERSION.zip" 'x86_64-unknown-linux-musl/release/ksud' -d .tmp
@@ -269,18 +313,18 @@ function patchOTAs() {
 
   for flavor in "${!POTENTIAL_ASSETS[@]}"; do
     local targetFile=".tmp/${POTENTIAL_ASSETS[$flavor]}"
-    
-    if ls "$targetFile" >/dev/null 2>&1; then 
+
+    if ls "$targetFile" >/dev/null 2>&1; then
       printGreen "File $targetFile already exists locally, not patching."
     else
       local args=()
-      
+
       args+=("--output" "$targetFile")
       args+=("--input" ".tmp/$OTA_TARGET.zip")
       args+=("--key-avb" "$KEY_AVB")
       args+=("--key-ota" "$KEY_OTA")
       args+=("--cert-ota" "$CERT_OTA")
-      
+
       if [[ "$flavor" == 'magisk' ]]; then
         args+=("--magisk" ".tmp/magisk-$MAGISK_VERSION.apk")
         args+=("--magisk-preinit-device" "$MAGISK_PREINIT_DEVICE")
@@ -297,20 +341,20 @@ function patchOTAs() {
         # $strings .tmp/boot.img | grep 'inux ver'
         # #inux version 5.15.149-android14-11-gffcffea08746 (
         .tmp/ksud boot-patch -b .tmp/boot.img --kmi "${KERNELSU_KMI}" --magiskboot .tmp/libmagiskboot.so -o .tmp
-        
+
          args+=(--prepatched "$(ls .tmp/kernelsu_patched*.img)")
       fi
-      
-          
+
+
       # If env vars not set, passphrases will be queried interactively
       if [ -v PASSPHRASE_AVB ]; then
         args+=("--pass-avb-env-var" "PASSPHRASE_AVB")
       fi
-    
+
       if [ -v PASSPHRASE_OTA ]; then
         args+=("--pass-ota-env-var" "PASSPHRASE_OTA")
       fi
-        
+
       .tmp/avbroot ota patch "${args[@]}"
     fi
   done
@@ -370,35 +414,45 @@ function uploadFile() {
     "https://uploads.github.com/repos/$GITHUB_REPO/releases/$RELEASE_ID/assets?name=$targetFileName"
 }
 
+# --- START NEW FUNCTION FOR ASSET DELETION ---
+function deleteAsset() {
+    local asset_id="$1"
+    local asset_name="$2"
+    printRed "Deleting asset: $asset_name (ID: $asset_id)"
+    curl --fail -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$GITHUB_REPO/releases/assets/$asset_id"
+}
+# --- END NEW FUNCTION ---
+
 function createOtaServerData() {
   downloadCusotaTool
 
   for flavor in "${!POTENTIAL_ASSETS[@]}"; do
     local POTENTIAL_ASSET_NAME="${POTENTIAL_ASSETS[$flavor]}"
     local targetFile=".tmp/${POTENTIAL_ASSET_NAME}"
-    
+
     local args=()
-  
+
     args+=("--input" "${targetFile}")
     args+=("--output" "${targetFile}.csig")
     args+=("--key" "$KEY_OTA")
     args+=("--cert" "$CERT_OTA")
-  
+
     # If env vars not set, passphrases will be queried interactively
     if [ -v PASSPHRASE_OTA ]; then
       args+=("--passphrase-env-var" "PASSPHRASE_OTA")
     fi
-  
+
     .tmp/custota-tool gen-csig "${args[@]}"
-  
+
     mkdir -p ".tmp/${flavor}"
-    
+
     local args=()
     args+=("--file" ".tmp/${flavor}/${DEVICE_ID}.json")
     # e.g. https://github.com/schnatterer/rooted-graphene/releases/download/2023121200-v26.4-e54c67f/oriole-ota_update-2023121200.zip
     # Instead of constructing the location we could also parse it from the upload response
     args+=("--location" "https://github.com/$GITHUB_REPO/releases/download/$OTA_VERSION/$POTENTIAL_ASSET_NAME")
-  
+
     .tmp/custota-tool gen-update-info "${args[@]}"
   done
 }
@@ -425,12 +479,17 @@ function uploadOtaServerData() {
   current_author=$(git log -1 --format="%an <%ae>")
 
   git checkout gh-pages
-  
+
   for flavor in "${!POTENTIAL_ASSETS[@]}"; do
     local POTENTIAL_ASSET_NAME="${POTENTIAL_ASSETS[$flavor]}"
 
-    uploadFile ".tmp/${POTENTIAL_ASSET_NAME}.csig" "$POTENTIAL_ASSET_NAME.csig" "application/octet-stream"
-    
+    # Check if CSIG asset exists locally before attempting upload, as it might have been skipped in checkBuildNecessary
+    if [[ -f ".tmp/${POTENTIAL_ASSET_NAME}.csig" ]]; then
+        uploadFile ".tmp/${POTENTIAL_ASSET_NAME}.csig" "$POTENTIAL_ASSET_NAME.csig" "application/octet-stream"
+    else
+        printGreen "CSIG file .tmp/${POTENTIAL_ASSET_NAME}.csig not found, skipping upload."
+    fi
+
     mkdir -p "$flavor"
     # update only, if current $DEVICE_ID.json does not contain $OTA_VERSION
     # We don't want to trigger users to upgrade on new commits from this repo or new magisk versions
@@ -442,14 +501,14 @@ function uploadOtaServerData() {
       printGreen "Skipping update of OTA server, because $OTA_VERSION already in $flavor/$DEVICE_ID.json and FORCE_OTA_SERVER_UPLOAD is false."
     fi
   done
-  
+
   if ! git diff-index --quiet HEAD; then
     # Commit and push only when there are changes
     git config user.name "GitHub Actions" && git config user.email "actions@github.com"
     git commit \
         --message "Update device $DEVICE_ID basing on commit $current_commit" \
         --author="$current_author"
-  
+
     git push origin gh-pages
   fi
 
@@ -464,3 +523,9 @@ function printGreen() {
 function printRed() {
     echo -e "\e[31m$1\e[0m"
 }
+
+# --- START NEW FUNCTION FOR YELLOW PRINTING ---
+function printYellow() {
+    echo -e "\e[33m$1\e[0m"
+}
+# --- END NEW FUNCTION ---
