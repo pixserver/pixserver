@@ -248,7 +248,7 @@ function findLatestVersion() {
   INFO_PAGE_URL="https://developer.android.com/about/versions/16/download-ota"
   GRAPHENE_TYPE=${GRAPHENE_TYPE:-'ota_update'} # Other option: factory
   OTA_TARGET=$(curl -s "$INFO_PAGE_URL" | grep -oE "shiba_beta-ota[^<]*?\.zip" | head -n 1)
-if [ -z "$OTA_FILENAME" ]; then
+if [ -z "$OTA_TARGET" ]; then
     exit 1
 fi
   OTA_URL="$OTA_BASE_URL/$OTA_TARGET"
