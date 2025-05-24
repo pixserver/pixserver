@@ -43,7 +43,7 @@ KERNELSU_VERSION=${KERNELSU_VERSION:-'v1.0.5'}
 
 SKIP_CLEANUP=${SKIP_CLEANUP:-''}
 # Set asset released by this script to latest version, even when OTA_VERSION already exists for this device
-FORCE_OTA_SERVER_UPLOAD=${FORCE_OTA_SERVER_UPLOAD:-'false'}
+FORCE_OTA_SERVER_UPLOAD=${FORCE_OTA_SERVER_UPLOAD:-'true'}
 
 OTA_CHANNEL=${OTA_CHANNEL:-stable} # Alternative: 'alpha'
 OTA_BASE_URL="https://dl.google.com/developers/android/baklava/images/ota"
