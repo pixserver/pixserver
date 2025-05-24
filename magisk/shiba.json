@@ -1,7 +1,7 @@
 {
   "version": 2,
   "full": {
-    "location_ota": "https://github.com/pixserver/pixserver/releases/download/latest/shiba-latest-magisk-v29.0-9709188.zip",
-    "location_csig": "https://github.com/pixserver/pixserver/releases/download/latest/shiba-latest-magisk-v29.0-9709188.zip.csig"
+    "location_ota": "https://github.com/pixserver/pixserver/releases/download/latest/shiba-latest-magisk-v29.0-5f152bc.zip",
+    "location_csig": "https://github.com/pixserver/pixserver/releases/download/latest/shiba-latest-magisk-v29.0-5f152bc.zip.csig"
   }
 }
