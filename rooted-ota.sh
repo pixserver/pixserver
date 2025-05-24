@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Requires git, jq, and curl
+# Requires git, jq, and curl 
 
 KEY_AVB=${KEY_AVB:-avb.key}
 KEY_OTA=${KEY_OTA:-ota.key}
